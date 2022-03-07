@@ -53,6 +53,7 @@ modded class PlayerBase {
 	private bool isNotifiedItem(string typeName) {
 		foreach(string item: notifiedItems) {
 			if (item == typeName) {
+				auto id = GetIdentity();
 				GetGame().AdminLog("Player " + id.GetName() + " (" + id.GetId() + ", " + id.GetPlainId() + ") has disallowed item " + item + " in their inventory on disconnect.");
 				return true;
 			}

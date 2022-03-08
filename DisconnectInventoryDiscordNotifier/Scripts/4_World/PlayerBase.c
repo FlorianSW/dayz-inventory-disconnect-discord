@@ -25,12 +25,13 @@ modded class PlayerBase {
 	void OnDisconnect() {
 		super.OnDisconnect();
 
-		if (hasNotifiedItems(GetInventory())) {
-			notifyItemOnDisconnect();
+		auto item = notifiedItem(GetInventory());
+		if (item != "") {
+			notifyItemOnDisconnect(item);
 		}
 	}
 
-	private bool hasNotifiedItems(GameInventory inventory) {
+	private string notifiedItem(GameInventory inventory) {
 		array<EntityAI> itemsArray = new array<EntityAI>;
 		inventory.EnumerateInventory(InventoryTraversalType.LEVELORDER, itemsArray);
 
@@ -40,38 +41,45 @@ modded class PlayerBase {
 
 			if (item && !item.IsInherited(SurvivorBase)) {
 				if (isNotifiedItem(item.GetType())) {
-					return true;
-				} else if (item.GetInventory() && hasNotifiedItems(item.GetInventory())) {
-					return true;
+					return item.GetType();
+				} else if (item.GetInventory()) {
+					auto notifyItem = notifiedItem(item.GetInventory());
+					if (notifyItem != "") {
+						return notifyItem;
+					}
 				}
 			}
 		}
 
-		return false;
+		return "";
 	}
 
 	private bool isNotifiedItem(string typeName) {
 		foreach(string item: notifiedItems) {
 			if (item == typeName) {
 				auto id = GetIdentity();
-				GetGame().AdminLog("Player " + id.GetName() + " (" + id.GetId() + ", " + id.GetPlainId() + ") has disallowed item " + item + " in their inventory on disconnect.");
+				GetGame().AdminLog(disallowedItemsOnDisconnectMessage(item));
 				return true;
 			}
 		}
 		return false;
 	}
 
-	private void notifyItemOnDisconnect() {
+	private void notifyItemOnDisconnect(string item) {
 		if (discordWebhookUrl == "") {
 			return;
 		}
 
-		auto id = GetIdentity();
-		string sendData = "{\"text\": \"Player " + id.GetName() + " (" + id.GetId() + ", " + id.GetPlainId() + ") has a disallowed item in their inventory during disconnect.\"}";
+		string sendData = "{\"text\": \"" + disallowedItemsOnDisconnectMessage(item) + "\"}";
 		DIDNDiscordCB webHookCB = new DIDNDiscordCB();
 		RestContext cURLCtx = GetRestApi().GetRestContext(discordWebhookUrl + "/slack");
 		cURLCtx.SetHeader("application/json");
 		cURLCtx.POST(webHookCB, "", sendData);
+	}
+
+	private string disallowedItemsOnDisconnectMessage(string item) {
+		auto id = GetIdentity();
+		return "Player " + id.GetName() + " (" + id.GetId() + ", " + id.GetPlainId() + ", position " + GetPosition() + ") has disallowed item (" + item + ") in their inventory on disconnect.";
 	}
 }
 

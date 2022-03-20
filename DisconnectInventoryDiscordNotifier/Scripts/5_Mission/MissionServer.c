@@ -8,7 +8,7 @@
  * License: MIT
  * Author: Florian Schmidt
  */
-modded class PlayerBase {
+modded class MissionServer {
 	/**
 	 * List of items that should trigger a notification when a player disconnects from the server with
 	 * them in the inventory. If a player has multiple of the mentioned items in the inventory, only one
@@ -22,16 +22,15 @@ modded class PlayerBase {
 	 */
 	private string discordWebhookUrl = "https://discord.com/api/webhooks/.../...";
 
-	void OnDisconnect() {
-		super.OnDisconnect();
-
-		auto item = notifiedItem(GetInventory());
+	void OnClientDisconnectedEvent(PlayerIdentity identity, PlayerBase player, int logoutTime, bool authFailed) {
+		auto item = notifiedItem(identity, player, player.GetInventory());
 		if (item != "") {
-			notifyItemOnDisconnect(item);
+			notifyItemOnDisconnect(identity, player, item);
 		}
+		super.OnClientDisconnectedEvent(identity, player, logoutTime, authFailed);
 	}
 
-	private string notifiedItem(GameInventory inventory) {
+	private string notifiedItem(PlayerIdentity identity, PlayerBase player, GameInventory inventory) {
 		array<EntityAI> itemsArray = new array<EntityAI>;
 		inventory.EnumerateInventory(InventoryTraversalType.LEVELORDER, itemsArray);
 
@@ -40,10 +39,10 @@ modded class PlayerBase {
 			Class.CastTo(item, entity);
 
 			if (item && !item.IsInherited(SurvivorBase)) {
-				if (isNotifiedItem(item.GetType())) {
+				if (isNotifiedItem(identity, player, item.GetType())) {
 					return item.GetType();
 				} else if (item.GetInventory()) {
-					auto notifyItem = notifiedItem(item.GetInventory());
+					auto notifyItem = notifiedItem(identity, player, item.GetInventory());
 					if (notifyItem != "") {
 						return notifyItem;
 					}
@@ -54,34 +53,32 @@ modded class PlayerBase {
 		return "";
 	}
 
-	private bool isNotifiedItem(string typeName) {
+	private bool isNotifiedItem(PlayerIdentity identity, PlayerBase player, string typeName) {
 		foreach(string item: notifiedItems) {
 			if (item == typeName) {
-				auto id = GetIdentity();
-				GetGame().AdminLog(disallowedItemsOnDisconnectMessage(item));
+				GetGame().AdminLog(disallowedItemsOnDisconnectMessage(identity, player, item));
 				return true;
 			}
 		}
 		return false;
 	}
 
-	private void notifyItemOnDisconnect(string item) {
+	private void notifyItemOnDisconnect(PlayerIdentity identity, PlayerBase player, string item) {
 		if (discordWebhookUrl == "") {
 			return;
 		}
 
-		string sendData = "{\"text\": \"" + disallowedItemsOnDisconnectMessage(item) + "\"}";
+		string sendData = "{\"text\": \"" + disallowedItemsOnDisconnectMessage(identity, player, item) + "\"}";
 		DIDNDiscordCB webHookCB = new DIDNDiscordCB();
 		RestContext cURLCtx = GetRestApi().GetRestContext(discordWebhookUrl + "/slack");
 		cURLCtx.SetHeader("application/json");
 		cURLCtx.POST(webHookCB, "", sendData);
 	}
 
-	private string disallowedItemsOnDisconnectMessage(string item) {
-		auto id = GetIdentity();
-		return "Player " + id.GetName() + " (" + id.GetId() + ", " + id.GetPlainId() + ", position " + GetPosition() + ") has disallowed item (" + item + ") in their inventory on disconnect.";
+	private string disallowedItemsOnDisconnectMessage(PlayerIdentity id, PlayerBase player, string item) {
+		return "Player " + id.GetName() + " (" + id.GetId() + ", " + id.GetPlainId() + ", position " + player.GetPosition() + ") has disallowed item (" + item + ") in their inventory on disconnect.";
 	}
-}
+};
 
 class DIDNDiscordCB: RestCallback {
 	void DiscordCB() {};

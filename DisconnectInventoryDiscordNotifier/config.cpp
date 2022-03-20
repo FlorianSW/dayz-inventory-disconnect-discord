@@ -17,11 +17,11 @@ class CfgMods {
 		version="0.1";
 		extra=0;
 		type="mod";
-		dependencies[]={"World"};
+		dependencies[]={"Mission"};
 		class defs {
-			class worldScriptModule {
+			class missionScriptModule {
 				value="";
-				files[]={"DisconnectInventoryDiscordNotifier/Scripts/4_World"};
+				files[]={"DisconnectInventoryDiscordNotifier/Scripts/5_Mission"};
 			};
 		};
 	};
